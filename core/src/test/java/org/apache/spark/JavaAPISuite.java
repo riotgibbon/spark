@@ -142,7 +142,7 @@ public class JavaAPISuite implements Serializable {
     JavaRDD<Integer> rdd = sc.parallelize(ints);
     JavaRDD<Integer> sample20 = rdd.sample(true, 0.2, 11);
     // expected 2 but of course result varies randomly a bit
-    Assert.assertEquals(3, sample20.count());
+    Assert.assertEquals(1, sample20.count());
     JavaRDD<Integer> sample20NoReplacement = rdd.sample(false, 0.2, 11);
     Assert.assertEquals(2, sample20NoReplacement.count());
   }
@@ -1416,6 +1416,18 @@ public class JavaAPISuite implements Serializable {
     } finally {
       localCluster.stop();
     }
+  }
+
+  static class Class1 {}
+  static class Class2 {}
+
+  @Test
+  public void testRegisterKryoClasses() {
+    SparkConf conf = new SparkConf();
+    conf.registerKryoClasses(new Class[]{ Class1.class, Class2.class });
+    Assert.assertEquals(
+        Class1.class.getName() + "," + Class2.class.getName(),
+        conf.get("spark.kryo.classesToRegister"));
   }
 
 }
