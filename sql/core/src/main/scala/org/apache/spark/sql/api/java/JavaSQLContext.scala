@@ -24,6 +24,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.spark.annotation.{DeveloperApi, Experimental}
 import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
 import org.apache.spark.sql.json.JsonRDD
+import org.apache.spark.sql.sources.{LogicalRelation, BaseRelation}
 import org.apache.spark.sql.types.util.DataTypeConversions
 import org.apache.spark.sql.{SQLContext, StructType => SStructType}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, GenericRow, Row => ScalaRow}
@@ -38,6 +39,10 @@ import org.apache.spark.util.Utils
 class JavaSQLContext(val sqlContext: SQLContext) extends UDFRegistration {
 
   def this(sparkContext: JavaSparkContext) = this(new SQLContext(sparkContext.sc))
+
+  def baseRelationToSchemaRDD(baseRelation: BaseRelation): JavaSchemaRDD = {
+    new JavaSchemaRDD(sqlContext, LogicalRelation(baseRelation))
+  }
 
   /**
    * Executes a SQL query using Spark, returning the result as a SchemaRDD.  The dialect that is
@@ -230,7 +235,7 @@ class JavaSQLContext(val sqlContext: SQLContext) extends UDFRegistration {
         case c: Class[_] if c == classOf[java.lang.Boolean] =>
           (org.apache.spark.sql.BooleanType, true)
         case c: Class[_] if c == classOf[java.math.BigDecimal] =>
-          (org.apache.spark.sql.DecimalType, true)
+          (org.apache.spark.sql.DecimalType(), true)
         case c: Class[_] if c == classOf[java.sql.Date] =>
           (org.apache.spark.sql.DateType, true)
         case c: Class[_] if c == classOf[java.sql.Timestamp] =>
