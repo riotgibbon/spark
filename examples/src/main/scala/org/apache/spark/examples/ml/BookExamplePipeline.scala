@@ -59,7 +59,6 @@ object BookExamplePipeline {
       .setInputCol(tokenizer.getOutputCol)
       .setOutputCol("features")
     val lr = new LogisticRegression() // LogisticRegression uses inputCol "features" by default.
-      .setRegParam(1.0) // model regularization
     val pipeline = new Pipeline()
       .setStages(Array(tokenizer, hashingTF, lr))
 

@@ -18,7 +18,7 @@
 package org.apache.spark.examples.mllib
 
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.mllib.classification.LogisticRegressionWithLBFGS
+import org.apache.spark.mllib.classification.LogisticRegressionWithSGD
 import org.apache.spark.mllib.feature.HashingTF
 import org.apache.spark.mllib.regression.LabeledPoint
 
@@ -46,9 +46,7 @@ object BookExample {
     trainingData.cache() // Cache data since Logistic Regression is an iterative algorithm.
 
     // Create a Logistic Regression learner which uses the LBFGS optimizer.
-    val lrLearner = new LogisticRegressionWithLBFGS()
-    // Set model regularization. A well-chosen regParam can make models more robust.
-    lrLearner.optimizer.setRegParam(1.0)
+    val lrLearner = new LogisticRegressionWithSGD()
     // Run the actual learning algorithm on the training data.
     val model = lrLearner.run(trainingData)
 

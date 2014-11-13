@@ -24,8 +24,8 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 
-import org.apache.spark.mllib.classification.LogisticRegressionWithLBFGS;
 import org.apache.spark.mllib.classification.LogisticRegressionModel;
+import org.apache.spark.mllib.classification.LogisticRegressionWithSGD;
 import org.apache.spark.mllib.feature.HashingTF;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.regression.LabeledPoint;
@@ -60,9 +60,7 @@ public final class JavaBookExample {
     trainingData.cache(); // Cache data since Logistic Regression is an iterative algorithm.
 
     // Create a Logistic Regression learner which uses the LBFGS optimizer.
-    LogisticRegressionWithLBFGS lrLearner = new LogisticRegressionWithLBFGS();
-    // Set model regularization. A well-chosen regParam can make models more robust.
-    lrLearner.optimizer().setRegParam(1.0);
+    LogisticRegressionWithSGD lrLearner = new LogisticRegressionWithSGD();
     // Run the actual learning algorithm on the training data.
     LogisticRegressionModel model = lrLearner.run(trainingData.rdd());
 

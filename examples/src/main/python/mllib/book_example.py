@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     # Run Logistic Regression using the SGD optimizer.
     # regParam is model regularization, which can make models more robust.
-    model = LogisticRegressionWithSGD.train(training_data, regParam=1.0)
+    model = LogisticRegressionWithSGD.train(training_data)
 
     # Test on a positive example (spam) and a negative one (ham).
     # First apply the same HashingTF feature transformation used on the training data.
