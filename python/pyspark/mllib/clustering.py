@@ -81,7 +81,7 @@ class KMeans(object):
     def train(cls, rdd, k, maxIterations=100, runs=1, initializationMode="k-means||"):
         """Train a k-means clustering model."""
         # cache serialized data to avoid objects over head in JVM
-        jcached = _to_java_object_rdd(rdd.map(_convert_to_vector), cache=True)
+        jcached = _to_java_object_rdd(rdd.map(_convert_to_vector), cache=False) # caching in Scala
         model = callMLlibFunc("trainKMeansModel", jcached, k, maxIterations, runs,
                               initializationMode)
         centers = callJavaFunc(rdd.context, model.clusterCenters)

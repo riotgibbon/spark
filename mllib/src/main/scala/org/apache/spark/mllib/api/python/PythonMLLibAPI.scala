@@ -74,9 +74,8 @@ class PythonMLLibAPI extends Serializable {
       learner: GeneralizedLinearAlgorithm[_ <: GeneralizedLinearModel],
       data: JavaRDD[LabeledPoint],
       initialWeights: Vector): JList[Object] = {
-    // Disable the uncached input warning because 'data' is a deliberately uncached MappedRDD.
-    learner.disableUncachedWarning()
-    val model = learner.run(data.rdd, initialWeights)
+    val model = learner.run(data.rdd.cache(), initialWeights)
+    data.rdd.unpersist()
     List(model.weights, model.intercept).map(_.asInstanceOf[Object]).asJava
   }
 
@@ -289,9 +288,9 @@ class PythonMLLibAPI extends Serializable {
       .setMaxIterations(maxIterations)
       .setRuns(runs)
       .setInitializationMode(initializationMode)
-      // Disable the uncached input warning because 'data' is a deliberately uncached MappedRDD.
-      .disableUncachedWarning()
-    kMeansAlg.run(data.rdd)
+    val model = kMeansAlg.run(data.rdd.cache())
+    data.rdd.unpersist()
+    model
   }
 
   /**
@@ -496,7 +495,9 @@ class PythonMLLibAPI extends Serializable {
       minInstancesPerNode = minInstancesPerNode,
       minInfoGain = minInfoGain)
 
-    DecisionTree.train(data.rdd, strategy)
+    val model = DecisionTree.train(data.rdd.cache(), strategy)
+    data.rdd.unpersist()
+    model
   }
 
   /**
