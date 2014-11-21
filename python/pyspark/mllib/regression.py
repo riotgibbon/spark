@@ -22,7 +22,7 @@ from pyspark.mllib._common import _dot, _regression_train_wrapper, \
 from pyspark.mllib.linalg import SparseVector, Vectors
 
 
-__all__ = ['LabeledPoint', 'LinearModel', 'LinearRegressionModel', 'RidgeRegressionModel'
+__all__ = ['LabeledPoint', 'LinearModel', 'LinearRegressionModel', 'RidgeRegressionModel',
            'LinearRegressionWithSGD', 'LassoWithSGD', 'RidgeRegressionWithSGD']
 
 
