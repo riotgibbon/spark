@@ -43,6 +43,17 @@ import scala.language.implicitConversions
 
 import org.apache.spark.sql.catalyst.types.DecimalType
 
+class HiveFunctionWrapper(var functionClassName: String) extends java.io.Serializable {
+  // for Serialization
+  def this() = this(null)
+
+  import org.apache.spark.util.Utils._
+  def createFunction[UDFType <: AnyRef](): UDFType = {
+    getContextOrSparkClassLoader
+      .loadClass(functionClassName).newInstance.asInstanceOf[UDFType]
+  }
+}
+
 /**
  * A compatibility layer for interacting with Hive version 0.12.0.
  */
@@ -136,6 +147,8 @@ private[hive] object HiveShim {
 
   def getStatsSetupConstTotalSize = StatsSetupConst.TOTAL_SIZE
 
+  def getStatsSetupConstRawDataSize = StatsSetupConst.RAW_DATA_SIZE
+
   def createDefaultDBIfNeeded(context: HiveContext) = {  }
 
   def getCommandProcessor(cmd: Array[String], conf: HiveConf) = {
@@ -161,6 +174,7 @@ private[hive] object HiveShim {
 
   def compatibilityBlackList = Seq(
     "decimal_.*",
+    "udf7",
     "drop_partitions_filter2",
     "show_.*",
     "serde_regex",
