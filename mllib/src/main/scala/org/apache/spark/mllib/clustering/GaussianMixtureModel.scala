@@ -20,8 +20,7 @@ package org.apache.spark.mllib.clustering
 import breeze.linalg.{DenseVector => BreezeVector}
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.mllib.linalg.Matrix
-import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.mllib.linalg.{Vectors, BLAS, Matrix, Vector}
 import org.apache.spark.mllib.stat.impl.MultivariateGaussian
 
 /**
@@ -39,15 +38,18 @@ class GaussianMixtureModel(
   val weight: Array[Double], 
   val mu: Array[Vector], 
   val sigma: Array[Matrix]) extends Serializable {
-  
+
+  assert(weight.forall(!_.isNaN))
+  assert(mu.forall(_.toArray.forall(!_.isNaN)))
+  assert(sigma.forall(_.toArray.forall(!_.isNaN)))
+
   /** Number of gaussians in mixture */
   def k: Int = weight.length
 
   /** Maps given points to their cluster indices. */
-  def predict(points: RDD[Vector]): (RDD[Array[Double]],RDD[Int]) = {
+  def predict(points: RDD[Vector]): RDD[Int] = {
     val responsibilityMatrix = predictMembership(points,mu,sigma,weight,k)
-    val clusterLabels = responsibilityMatrix.map(r => r.indexOf(r.max))
-    (responsibilityMatrix, clusterLabels)
+    responsibilityMatrix.map(r => r.indexOf(r.max))
   }
   
   /**
@@ -90,5 +92,26 @@ class GaussianMixtureModel(
       p(i) /= pSum
     }
     p
-  }  
+  }
+
+  /**
+   * Return the K-means cost (sum of squared distances of points to their nearest center) for this
+   * model on the given data.
+   */
+  def computeCost(data: RDD[Vector]): Double = {
+    val sc = data.sparkContext
+    val dists = sc.broadcast{
+      (0 until k).map{ i =>
+        new MultivariateGaussian(mu(i).toBreeze.toDenseVector, sigma(i).toBreeze.toDenseMatrix)
+      }.toArray
+    }
+    val weights = sc.broadcast(weight)
+    data.map { x =>
+      val soft = computeSoftAssignments(x.toBreeze.toDenseVector, dists.value, weights.value, k)
+      val pred = soft.indexOf(soft.max)
+      val predCenter = dists.value(pred).mu
+      val dist = Vectors.norm(Vectors.fromBreeze(predCenter - x.toBreeze), 2)
+      dist * dist
+    }.sum()
+  }
 }

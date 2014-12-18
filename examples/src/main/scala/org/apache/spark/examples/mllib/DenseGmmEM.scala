@@ -56,7 +56,7 @@ object DenseGmmEM {
     }
     
     println("Cluster labels:")
-    val (responsibilityMatrix, clusterLabels) = clusters.predict(data)
+    val clusterLabels = clusters.predict(data)
     for (x <- clusterLabels.collect) {
       print(" " + x)
     }

@@ -200,7 +200,6 @@ class GaussianMixtureModelEM private (
       // aggregate the cluster contribution for all sample points
       val (logLikelihood, wSums, muSums, sigmaSums) = 
         breezeData.aggregate(zeroExpectationSum(k, d))(compute.value, addExpectationSums)
-      
       // Create new distributions based on the partial assignments
       // (often referred to as the "M" step in literature)
       val sumWeights = wSums.sum
