@@ -26,10 +26,15 @@ import org.apache.spark.mllib.random.UniformGenerator
 
 object DenseGmmEMTiming {
   def main(args: Array[String]): Unit = {
-    if (args.length != 2) {
-      println("usage: DenseGmmEMTiming <input file> <numInstances>")
+    if (args.length != 1 || args.length != 2) {
+      println("usage: DenseGmmEMTiming <input file> (<instanceLimit>)")
     } else {
-      run(args(0), args(1).toInt)
+      val instanceLimit = if (args.length == 1) {
+        None
+      } else {
+        Some(args(1).toInt)
+      }
+      run(args(0), instanceLimit)
     }
   }
 
@@ -57,7 +62,7 @@ object DenseGmmEMTiming {
     println(s"$numInstances\t$k\t$numFeatures\t$elapsedTime\t$kmeansCost")
   }
 
-  def run(inputFile: String, numInstances: Int) {
+  def run(inputFile: String, instanceLimit: Option[Int]) {
     val conf = new SparkConf().setAppName("Spark EM Sample")
     val ctx  = new SparkContext(conf)
     
@@ -65,11 +70,11 @@ object DenseGmmEMTiming {
       line.trim.split(' ').toSeq
     }
     val origWordsRDDcount = origWordsRDD.count()
-    val wordsRDD = if (origWordsRDDcount <= numInstances) {
+    val wordsRDD = if (instanceLimit.isEmpty || origWordsRDDcount <= instanceLimit.get) {
       origWordsRDD
     } else {
       origWordsRDD.sample(withReplacement = true,
-        fraction = numInstances / origWordsRDDcount.toDouble)
+        fraction = instanceLimit.get / origWordsRDDcount.toDouble)
     }
     wordsRDD.cache()
     val ks = Array(2, 4, 16, 64)
