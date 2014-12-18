@@ -26,7 +26,7 @@ import org.apache.spark.mllib.random.UniformGenerator
 
 object DenseGmmEMTiming {
   def main(args: Array[String]): Unit = {
-    if (args.length != 1 || args.length != 2) {
+    if (args.length != 1 && args.length != 2) {
       println("usage: DenseGmmEMTiming <input file> (<instanceLimit>)")
     } else {
       val instanceLimit = if (args.length == 1) {
