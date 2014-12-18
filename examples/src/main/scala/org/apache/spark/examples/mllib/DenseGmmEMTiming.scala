@@ -58,7 +58,7 @@ object DenseGmmEMTiming {
       .setConvergenceTol(convergenceTol)
       .run(featuresRDD)
     val elapsedTime = (System.nanoTime() - startTime) / 1e9
-    val kmeansCost = clusters.computeCost(featuresRDD)
+    val kmeansCost = clusters.computeCost(featuresRDD) / numInstances.toDouble
     println(s"$numInstances\t$k\t$numFeatures\t$elapsedTime\t$kmeansCost")
   }
 
@@ -77,9 +77,9 @@ object DenseGmmEMTiming {
         fraction = instanceLimit.get / origWordsRDDcount.toDouble)
     }
     wordsRDD.cache()
-    val ks = Array(2, 4, 16, 64)
-    val numFeaturess = Array(10, 100, 10000)
-    println("\nnumInstances\tk\tnumFeatures\ttime(sec)\tkmeansCost")
+    val ks = Array(2, 4, 16, 64, 256)
+    val numFeaturess = Array(10, 100)
+    println("\nnumInstances\tk\tnumFeatures\ttime(sec)\tavg kmeansCost")
     for (k <- ks) {
       for (numFeatures <- numFeaturess) {
         runTest(wordsRDD, k, numFeatures)
