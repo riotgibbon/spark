@@ -293,12 +293,14 @@ object EnsembleTiming {
       for (numTrees <- numTreess) {
         var rfResults = Array.empty[Results]
         var gbtResults = Array.empty[Results]
-        for (iter <- numIterations) {
+        var iter = 0
+        while (iter < numIterations) {
           val seed = sampleSeeds(iter)
           val rfRes = testRandomForest(training, test, strategy, trainFrac, numTrees, params, seed)
           rfResults = rfResults :+ rfRes
           val gbtRes = testGBT(training, test, strategy, trainFrac, numTrees, params, seed)
           gbtResults = gbtResults :+ gbtRes
+          iter += 1
         }
         allResults = allResults :+ FullResults("rf", ntrain, numTrees, median(rfResults))
         allResults = allResults :+ FullResults("gbt", ntrain, numTrees, median(gbtResults))
