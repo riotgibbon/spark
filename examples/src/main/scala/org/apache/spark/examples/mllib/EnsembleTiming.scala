@@ -64,6 +64,7 @@ object EnsembleTiming {
       maxDepth: Int = 5,
       impurity: ImpurityType = Gini,
       maxBins: Int = 32,
+      numPartitions: Int = -1,
       minInstancesPerNode: Int = 1,
       minInfoGain: Double = 0.0,
       featureSubsetStrategy: String = "auto",
@@ -92,6 +93,9 @@ object EnsembleTiming {
       opt[Int]("maxBins")
         .text(s"max number of bins, default: ${defaultParams.maxBins}")
         .action((x, c) => c.copy(maxBins = x))
+      opt[Int]("numPartitions")
+        .text(s"number of data partitions (-1 = ignore), default: ${defaultParams.numPartitions}")
+        .action((x, c) => c.copy(numPartitions = x))
       opt[Int]("minInstancesPerNode")
         .text(s"min number of instances required at child nodes to create the parent split," +
           s" default: ${defaultParams.minInstancesPerNode}")
@@ -250,12 +254,12 @@ object EnsembleTiming {
       // Split input into training, test.
       examples.randomSplit(Array(1.0 - fracTest, fracTest))
     }
-    val training = splits(0)
+    val training = if (params.numPartitions > 0) {
+      splits(0).repartition(params.numPartitions)
+    } else {
+      splits(0)
+    }.cache()
     val test = splits(1).cache()
-
-    val numTraining = training.count()
-    val numTest = test.count()
-    println(s"numTraining = $numTraining, numTest = $numTest.")
 
     examples.unpersist(blocking = false)
 
