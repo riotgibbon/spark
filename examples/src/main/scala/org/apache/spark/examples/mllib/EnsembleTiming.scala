@@ -41,7 +41,7 @@ import org.apache.spark.util.Utils
  *  - varying # trees
  * Record:
  *  - training time
- *  - test accuracy
+ *  - test MSE
  */
 object EnsembleTiming {
 
@@ -322,7 +322,7 @@ object EnsembleTiming {
     println()
     println("ALL RESULTS")
     println()
-    println("alg\tntrain\tnumTrees\ttime\ttrainAcc\ttestAcc")
+    println("alg\tntrain\tnumTrees\ttime\ttrainMSE\ttestMSE")
     allResults.map(r => println(s"${r.alg}\t${r.ntrain}\t${r.numTrees}\t${r.res.time}\t${r.res.train}\t${r.res.test}"))
     println()
 
@@ -352,7 +352,7 @@ object EnsembleTiming {
   }
 
   /**
-   * For the given data and numTrees, find median training time and accuracy from numIterations.
+   * For the given data and numTrees, find median training time and MSE from numIterations.
    */
   def testRandomForest(trainingTMP: RDD[LabeledPoint], test: RDD[LabeledPoint], strategy: Strategy,
                        trainFrac: Double, numTrees: Int, params: Params, seed: Long): Results = {
@@ -365,22 +365,23 @@ object EnsembleTiming {
 
     val randomSeed = Utils.random.nextInt()
     val startTime = System.nanoTime()
-    val model = RandomForest.trainClassifier(training, strategy, numTrees,
+    val model = RandomForest.trainRegressor(training, strategy, numTrees,
       params.featureSubsetStrategy, randomSeed)
     val elapsedTime = (System.nanoTime() - startTime) / 1e9
     println(s"Training time: $elapsedTime seconds")
-    val trainAccuracy =
-      new MulticlassMetrics(training.map(lp => (model.predict(lp.features), lp.label)))
-        .precision
-    println(s"Train accuracy = $trainAccuracy")
-    val testAccuracy =
-      new MulticlassMetrics(test.map(lp => (model.predict(lp.features), lp.label))).precision
-    println(s"Test accuracy = $testAccuracy")
-    Results(elapsedTime, trainAccuracy, testAccuracy)
+    val trainMSE =
+      meanSquaredError(model, training)
+      //new MulticlassMetrics(training.map(lp => (model.predict(lp.features), lp.label))).precision
+    println(s"Train MSE = $trainMSE")
+    val testMSE =
+      meanSquaredError(model, test)
+      //new MulticlassMetrics(test.map(lp => (model.predict(lp.features), lp.label))).precision
+    println(s"Test MSE = $testMSE")
+    Results(elapsedTime, trainMSE, testMSE)
   }
 
   /**
-   * For the given data and numTrees, find median training time and accuracy from numIterations.
+   * For the given data and numTrees, find median training time and MSE from numIterations.
    */
   def testGBT(trainingTMP: RDD[LabeledPoint], test: RDD[LabeledPoint], treeStrategy: Strategy,
               trainFrac: Double, numTrees: Int, params: Params, seed: Long): Results = {
@@ -397,14 +398,27 @@ object EnsembleTiming {
     val model = GradientBoostedTrees.train(training, strategy)
     val elapsedTime = (System.nanoTime() - startTime) / 1e9
     println(s"Training time: $elapsedTime seconds")
-    val trainAccuracy =
-      new MulticlassMetrics(training.map(lp => (model.predict(lp.features), lp.label)))
-        .precision
-    println(s"Train accuracy = $trainAccuracy")
-    val testAccuracy =
-      new MulticlassMetrics(test.map(lp => (model.predict(lp.features), lp.label))).precision
-    println(s"Test accuracy = $testAccuracy")
-    Results(elapsedTime, trainAccuracy, testAccuracy)
+    val trainMSE =
+      meanSquaredError(model, training)
+      //new MulticlassMetrics(training.map(lp => (model.predict(lp.features), lp.label))).precision
+    println(s"Train MSE = $trainMSE")
+    val testMSE =
+      meanSquaredError(model, test)
+      //new MulticlassMetrics(test.map(lp => (model.predict(lp.features), lp.label))).precision
+    println(s"Test MSE = $testMSE")
+    Results(elapsedTime, trainMSE, testMSE)
+  }
+
+  /**
+   * Calculates the mean squared error for regression.
+   */
+  private[mllib] def meanSquaredError(
+                                       model: { def predict(features: Vector): Double },
+                                       data: RDD[LabeledPoint]): Double = {
+    data.map { y =>
+      val err = model.predict(y.features) - y.label
+      err * err
+    }.mean()
   }
 
 }
