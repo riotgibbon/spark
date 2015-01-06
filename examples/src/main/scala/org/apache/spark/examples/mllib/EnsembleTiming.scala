@@ -46,8 +46,6 @@ import org.apache.spark.util.Utils
 object EnsembleTiming {
 
   val numIterations = 5
-  val trainFracs = Array(0.001, 0.01, 0.1, 0.2, 0.5, 1.0)
-  val numTreess = Array(1, 5, 10, 30, 100)
   val sampleSeedsRandom = new scala.util.Random()
   val sampleSeeds = Array.fill[Long](numIterations)(sampleSeedsRandom.nextLong())
 
@@ -70,6 +68,8 @@ object EnsembleTiming {
       minInfoGain: Double = 0.0,
       featureSubsetStrategy: String = "auto",
       fracTest: Double = 0.2,
+      numTreess: Array[Int] = Array(1, 5, 10),
+      trainFracs: Array[Double] = Array(0.001, 0.01, 0.1, 0.2, 0.5, 1.0),
       useNodeIdCache: Boolean = false,
       checkpointDir: Option[String] = None,
       checkpointInterval: Int = 10) extends AbstractParams[Params]
@@ -108,6 +108,12 @@ object EnsembleTiming {
         .text(s"fraction of data to hold out for testing.  If given option testInput, " +
           s"this option is ignored. default: ${defaultParams.fracTest}")
         .action((x, c) => c.copy(fracTest = x))
+      opt[String]("numTreess")
+        .text(s"number of trees in ensemble (array, space-separated). default: ${defaultParams.numTreess}")
+        .action((x, c) => c.copy(numTreess = x.split(" ").map(_.toInt)))
+      opt[String]("trainFracs")
+        .text(s"fractions of training data to test (array, space-separated). default: ${defaultParams.trainFracs}")
+        .action((x, c) => c.copy(trainFracs = x.split(" ").map(_.toDouble)))
       opt[Boolean]("useNodeIdCache")
         .text(s"whether to use node Id cache during training, " +
           s"default: ${defaultParams.useNodeIdCache}")
@@ -288,9 +294,9 @@ object EnsembleTiming {
           checkpointInterval = params.checkpointInterval)
 
     var allResults = Array.empty[FullResults]
-    for (trainFrac <- trainFracs) {
+    for (trainFrac <- params.trainFracs) {
       val ntrain = (totalTrain * trainFrac).round
-      for (numTrees <- numTreess) {
+      for (numTrees <- params.numTreess) {
         var rfResults = Array.empty[Results]
         var gbtResults = Array.empty[Results]
         var iter = 0
