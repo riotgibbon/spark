@@ -17,20 +17,19 @@
 
 package org.apache.spark.examples.mllib
 
-import org.apache.spark.mllib.tree.loss.LogLoss
-
 import scala.language.reflectiveCalls
 
 import scopt.OptionParser
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{Logging, SparkConf, SparkContext}
 import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.evaluation.MulticlassMetrics
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.tree.{GradientBoostedTrees, DecisionTree, RandomForest, impurity}
+import org.apache.spark.mllib.tree.{GradientBoostedTrees, RandomForest, impurity}
 import org.apache.spark.mllib.tree.configuration.{BoostingStrategy, Algo, Strategy}
 import org.apache.spark.mllib.tree.configuration.Algo._
+import org.apache.spark.mllib.tree.loss.{SquaredError, LogLoss}
 import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.rdd.RDD
 import org.apache.spark.util.Utils
@@ -41,9 +40,9 @@ import org.apache.spark.util.Utils
  *  - varying # trees
  * Record:
  *  - training time
- *  - test MSE
+ *  - training, test metrics
  */
-object EnsembleTiming {
+object EnsembleTiming extends Logging {
 
   val numIterations = 5
   val sampleSeedsRandom = new scala.util.Random()
@@ -298,6 +297,10 @@ object EnsembleTiming {
           checkpointDir = params.checkpointDir,
           checkpointInterval = params.checkpointInterval)
 
+    println()
+    println("ALL RESULTS")
+    println()
+    println("alg\tntrain\tnumTrees\ttime\ttrainMetric\ttestMetric")
     var allResults = Array.empty[FullResults]
     for (trainFrac <- params.trainFracs) {
       val ntrain = (totalTrain * trainFrac).round
@@ -313,24 +316,24 @@ object EnsembleTiming {
           gbtResults = gbtResults :+ gbtRes
           iter += 1
         }
-        allResults = allResults :+ FullResults("rf", ntrain, numTrees, median(rfResults))
-        allResults = allResults :+ FullResults("gbt", ntrain, numTrees, median(gbtResults))
+        val rfFR = FullResults("rf", ntrain, numTrees, median(rfResults))
+        val gbtFR = FullResults("gbt", ntrain, numTrees, median(gbtResults))
+        allResults = allResults :+ rfFR
+        allResults = allResults :+ gbtFR
+        println(rfFR.toString)
+        println(gbtFR.toString)
       }
     }
-
-    // print allResults
-    println()
-    println("ALL RESULTS")
-    println()
-    println("alg\tntrain\tnumTrees\ttime\ttrainMSE\ttestMSE")
-    allResults.map(r => println(s"${r.alg}\t${r.ntrain}\t${r.numTrees}\t${r.res.time}\t${r.res.train}\t${r.res.test}"))
     println()
 
     sc.stop()
   }
 
   case class Results(time: Double, train: Double, test: Double)
-  case class FullResults(alg: String, ntrain: Long, numTrees: Int, res: Results)
+  case class FullResults(alg: String, ntrain: Long, numTrees: Int, res: Results) {
+    override def toString: String =
+      s"$alg\t$ntrain\t$numTrees\t${res.time}\t${res.train}\t${res.test}"
+  }
 
   def median(a: Array[Double]): Double = {
     val b = a.sorted
@@ -352,7 +355,7 @@ object EnsembleTiming {
   }
 
   /**
-   * For the given data and numTrees, find median training time and MSE from numIterations.
+   * For the given data and numTrees, find median training time and metrics from numIterations.
    */
   def testRandomForest(trainingTMP: RDD[LabeledPoint], test: RDD[LabeledPoint], strategy: Strategy,
                        trainFrac: Double, numTrees: Int, params: Params, seed: Long): Results = {
@@ -361,23 +364,20 @@ object EnsembleTiming {
     } else {
       trainingTMP.sample(withReplacement = false, fraction = trainFrac, seed)
     }.cache()
-    println(s"now testing ${training.count()} instances")
+    logWarning(s"now testing ${training.count()} instances")
 
     val randomSeed = Utils.random.nextInt()
     val startTime = System.nanoTime()
-    val model = RandomForest.trainRegressor(training, strategy, numTrees,
-      params.featureSubsetStrategy, randomSeed)
+    val model = if (params.algo == Classification) {
+      RandomForest.trainClassifier(training, strategy, numTrees,
+        params.featureSubsetStrategy, randomSeed)
+    } else {
+      RandomForest.trainRegressor(training, strategy, numTrees,
+        params.featureSubsetStrategy, randomSeed)
+    }
     val elapsedTime = (System.nanoTime() - startTime) / 1e9
-    println(s"Training time: $elapsedTime seconds")
-    val trainMSE =
-      meanSquaredError(model, training)
-      //new MulticlassMetrics(training.map(lp => (model.predict(lp.features), lp.label))).precision
-    println(s"Train MSE = $trainMSE")
-    val testMSE =
-      meanSquaredError(model, test)
-      //new MulticlassMetrics(test.map(lp => (model.predict(lp.features), lp.label))).precision
-    println(s"Test MSE = $testMSE")
-    Results(elapsedTime, trainMSE, testMSE)
+    logWarning(s"Training time: $elapsedTime seconds")
+    getResults(model, training, test, params.algo, elapsedTime)
   }
 
   /**
@@ -390,31 +390,57 @@ object EnsembleTiming {
     } else {
       trainingTMP.sample(withReplacement = false, fraction = trainFrac, seed)
     }.cache()
-    println(s"now testing ${training.count()} instances")
+    logWarning(s"now testing ${training.count()} instances")
 
-    val strategy = BoostingStrategy(treeStrategy, LogLoss, numTrees)
+    val strategy = if (params.algo == Classification) {
+      BoostingStrategy(treeStrategy, LogLoss, numTrees)
+    } else {
+      BoostingStrategy(treeStrategy, SquaredError, numTrees)
+    }
     val randomSeed = Utils.random.nextInt()
     val startTime = System.nanoTime()
     val model = GradientBoostedTrees.train(training, strategy)
     val elapsedTime = (System.nanoTime() - startTime) / 1e9
-    println(s"Training time: $elapsedTime seconds")
-    val trainMSE =
-      meanSquaredError(model, training)
-      //new MulticlassMetrics(training.map(lp => (model.predict(lp.features), lp.label))).precision
-    println(s"Train MSE = $trainMSE")
-    val testMSE =
-      meanSquaredError(model, test)
-      //new MulticlassMetrics(test.map(lp => (model.predict(lp.features), lp.label))).precision
-    println(s"Test MSE = $testMSE")
-    Results(elapsedTime, trainMSE, testMSE)
+    logWarning(s"Training time: $elapsedTime seconds")
+    getResults(model, training, test, params.algo, elapsedTime)
+  }
+
+  private def getResults(
+      model: { def predict(features: Vector): Double },
+      training: RDD[LabeledPoint],
+      test: RDD[LabeledPoint],
+      algo: Algo,
+      elapsedTime: Double): Results = {
+    val trainMetric = getMetric(model, training, algo)
+    logWarning(s"Train Metric = $trainMetric")
+    val testMetric = getMetric(model, test, algo)
+    logWarning(s"Test MSE = $testMetric")
+    Results(elapsedTime, trainMetric, testMetric)
+  }
+
+  private def getMetric(
+      model: { def predict(features: Vector): Double },
+      data: RDD[LabeledPoint],
+      algo: Algo): Double = {
+    if (algo == Classification) {
+      accuracy(model, data)
+    } else {
+      meanSquaredError(model, data)
+    }
+  }
+
+  private def accuracy(
+      model: { def predict(features: Vector): Double },
+      data: RDD[LabeledPoint]): Double = {
+    new MulticlassMetrics(data.map(lp => (model.predict(lp.features), lp.label))).precision
   }
 
   /**
    * Calculates the mean squared error for regression.
    */
   private[mllib] def meanSquaredError(
-                                       model: { def predict(features: Vector): Double },
-                                       data: RDD[LabeledPoint]): Double = {
+      model: { def predict(features: Vector): Double },
+      data: RDD[LabeledPoint]): Double = {
     data.map { y =>
       val err = model.predict(y.features) - y.label
       err * err
