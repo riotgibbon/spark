@@ -289,40 +289,61 @@ object EnsembleTiming extends Logging {
     }
 
     val strategy
-      = new Strategy(
-          algo = params.algo,
-          impurity = impurityCalculator,
-          maxDepth = params.maxDepth,
-          maxBins = params.maxBins,
-          numClasses = numClasses,
-          minInstancesPerNode = params.minInstancesPerNode,
-          minInfoGain = params.minInfoGain,
-          useNodeIdCache = params.useNodeIdCache,
-          checkpointDir = params.checkpointDir,
-          checkpointInterval = params.checkpointInterval)
+    = new Strategy(
+      algo = params.algo,
+      impurity = impurityCalculator,
+      maxDepth = params.maxDepth,
+      maxBins = params.maxBins,
+      numClasses = numClasses,
+      minInstancesPerNode = params.minInstancesPerNode,
+      minInfoGain = params.minInfoGain,
+      useNodeIdCache = params.useNodeIdCache,
+      checkpointDir = params.checkpointDir,
+      checkpointInterval = params.checkpointInterval)
 
     println()
     println("ALL RESULTS")
     println()
     println("alg\tntrain\tnumTrees\ttime\ttrainMetric\ttestMetric")
-    var allResults = Array.empty[FullResults]
-    for (trainFrac <- params.trainFracs) {
-      val ntrain = (totalTrain * trainFrac).round
+    // Vary numTrees
+    val maxTrainFrac = params.trainFracs.max
+    if (true) {
+      val ntrain = (totalTrain * maxTrainFrac).round
       for (numTrees <- params.numTreess) {
         var results = Array.empty[Results]
         var iter = 0
         while (iter < numIterations) {
           val seed = sampleSeeds(iter)
           val res = if (params.ensemble == "rf") {
-            testRandomForest(training, test, strategy, trainFrac, numTrees, params, seed)
+            testRandomForest(training, test, strategy, maxTrainFrac, numTrees, params, seed)
           } else {
-            testGBT(training, test, strategy, trainFrac, numTrees, params, seed)
+            testGBT(training, test, strategy, maxTrainFrac, numTrees, params, seed)
           }
           results = results :+ res
           iter += 1
         }
         val fr = FullResults("rf", ntrain, numTrees, median(results))
-        allResults = allResults :+ fr
+        println(fr.toString)
+      }
+    }
+    // Vary trainFrac
+    val maxNumTrees = params.numTreess.max
+    if (true) {
+      for (trainFrac <- params.trainFracs) {
+        val ntrain = (totalTrain * trainFrac).round
+        var results = Array.empty[Results]
+        var iter = 0
+        while (iter < numIterations) {
+          val seed = sampleSeeds(iter)
+          val res = if (params.ensemble == "rf") {
+            testRandomForest(training, test, strategy, trainFrac, maxNumTrees, params, seed)
+          } else {
+            testGBT(training, test, strategy, trainFrac, maxNumTrees, params, seed)
+          }
+          results = results :+ res
+          iter += 1
+        }
+        val fr = FullResults("rf", ntrain, maxNumTrees, median(results))
         println(fr.toString)
       }
     }
