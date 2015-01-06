@@ -67,6 +67,7 @@ object EnsembleTiming extends Logging {
       minInstancesPerNode: Int = 1,
       minInfoGain: Double = 0.0,
       featureSubsetStrategy: String = "auto",
+      ensemble: String = "rf",
       fracTest: Double = 0.2,
       numTreess: Array[Int] = Array(1, 5, 10),
       trainFracs: Array[Double] = Array(0.001, 0.01, 0.1, 0.2, 0.5, 1.0),
@@ -107,6 +108,9 @@ object EnsembleTiming extends Logging {
           s" (${RandomForest.supportedFeatureSubsetStrategies.mkString(", ")}}), " +
           s"default: ${defaultParams.featureSubsetStrategy}")
         .action((x, c) => c.copy(featureSubsetStrategy = x))
+      opt[String]("ensemble")
+        .text(s"ensemble type (rf, gbt), " + s"default: ${defaultParams.ensemble}")
+        .action((x, c) => c.copy(ensemble = x))
       opt[Double]("fracTest")
         .text(s"fraction of data to hold out for testing.  If given option testInput, " +
           s"this option is ignored. default: ${defaultParams.fracTest}")
@@ -305,23 +309,21 @@ object EnsembleTiming extends Logging {
     for (trainFrac <- params.trainFracs) {
       val ntrain = (totalTrain * trainFrac).round
       for (numTrees <- params.numTreess) {
-        var rfResults = Array.empty[Results]
-        var gbtResults = Array.empty[Results]
+        var results = Array.empty[Results]
         var iter = 0
         while (iter < numIterations) {
           val seed = sampleSeeds(iter)
-          val rfRes = testRandomForest(training, test, strategy, trainFrac, numTrees, params, seed)
-          rfResults = rfResults :+ rfRes
-          val gbtRes = testGBT(training, test, strategy, trainFrac, numTrees, params, seed)
-          gbtResults = gbtResults :+ gbtRes
+          val res = if (params.ensemble == "rf") {
+            testRandomForest(training, test, strategy, trainFrac, numTrees, params, seed)
+          } else {
+            testGBT(training, test, strategy, trainFrac, numTrees, params, seed)
+          }
+          results = results :+ res
           iter += 1
         }
-        val rfFR = FullResults("rf", ntrain, numTrees, median(rfResults))
-        val gbtFR = FullResults("gbt", ntrain, numTrees, median(gbtResults))
-        allResults = allResults :+ rfFR
-        allResults = allResults :+ gbtFR
-        println(rfFR.toString)
-        println(gbtFR.toString)
+        val fr = FullResults("rf", ntrain, numTrees, median(results))
+        allResults = allResults :+ fr
+        println(fr.toString)
       }
     }
     println()
