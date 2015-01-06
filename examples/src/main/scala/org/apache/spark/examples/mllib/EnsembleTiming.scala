@@ -183,7 +183,8 @@ object EnsembleTiming {
       dataFormat: String,
       testInput: String,
       algo: Algo,
-      fracTest: Double): (RDD[LabeledPoint], RDD[LabeledPoint], Int) = {
+      fracTest: Double,
+      numPartitions: Int): (RDD[LabeledPoint], RDD[LabeledPoint], Int) = {
     // Load training data and cache it.
     val origExamples = dataFormat match {
       case "dense" => MLUtils.loadLabeledPoints(sc, input).cache()
@@ -254,8 +255,8 @@ object EnsembleTiming {
       // Split input into training, test.
       examples.randomSplit(Array(1.0 - fracTest, fracTest))
     }
-    val training = if (params.numPartitions > 0) {
-      splits(0).repartition(params.numPartitions)
+    val training = if (numPartitions > 0) {
+      splits(0).repartition(numPartitions)
     } else {
       splits(0)
     }.cache()
@@ -275,7 +276,7 @@ object EnsembleTiming {
 
     // Load training and test data and cache it.
     val (training, test, numClasses) = loadDatasets(sc, params.input, params.dataFormat,
-      params.testInput, params.algo, params.fracTest)
+      params.testInput, params.algo, params.fracTest, params.numPartitions)
     val totalTrain = training.count()
 
     val impurityCalculator = params.impurity match {
