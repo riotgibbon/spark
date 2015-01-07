@@ -322,7 +322,7 @@ object EnsembleTiming extends Logging {
           results = results :+ res
           iter += 1
         }
-        val fr = FullResults("rf", ntrain, numTrees, median(results))
+        val fr = FullResults(params.ensemble, ntrain, numTrees, median(results))
         println(fr.toString)
       }
     }
@@ -343,7 +343,7 @@ object EnsembleTiming extends Logging {
           results = results :+ res
           iter += 1
         }
-        val fr = FullResults("rf", ntrain, maxNumTrees, median(results))
+        val fr = FullResults(params.ensemble, ntrain, maxNumTrees, median(results))
         println(fr.toString)
       }
     }
