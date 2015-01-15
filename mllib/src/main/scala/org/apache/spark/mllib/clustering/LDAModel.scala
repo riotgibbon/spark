@@ -163,7 +163,7 @@ class LocalLDAModel private[clustering] (
  */
 @DeveloperApi
 class DistributedLDAModel private[clustering] (
-    private val state: LDA.LearningState) extends LDAModel {
+    private val state: LDA.LearningState, val times: Array[Double]) extends LDAModel {
 
   import LDA._
 

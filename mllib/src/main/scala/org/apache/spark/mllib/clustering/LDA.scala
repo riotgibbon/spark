@@ -172,11 +172,15 @@ class LDA private (
     }
     var state = LDA.initialState(documents, k, topicSmoothing, termSmoothing, seed)
     var iter = 0
+    val times = Array.fill[Double](maxIterations)(0)
     while (iter < maxIterations) {
+      val start = System.nanoTime()
       state = state.next()
+      val elapsedSeconds = (System.nanoTime() - start) / 1e9
+      times(iter) = elapsedSeconds
       iter += 1
     }
-    new DistributedLDAModel(state)
+    new DistributedLDAModel(state, times)
   }
 }
 
