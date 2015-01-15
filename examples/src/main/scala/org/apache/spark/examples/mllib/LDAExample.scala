@@ -26,7 +26,6 @@ import scopt.OptionParser
 import org.apache.log4j.{Level, Logger}
 
 import org.apache.spark.{SparkContext, SparkConf}
-import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.clustering.LDA
 import org.apache.spark.mllib.clustering.LDA.Document
 import org.apache.spark.mllib.linalg.SparseVector
@@ -46,8 +45,8 @@ object LDAExample {
       input: Seq[String] = Seq.empty,
       k: Int = 20,
       maxIterations: Int = 10,
-      topicSmoothing: Double = 0.1,
-      termSmoothing: Double = 0.1,
+      topicSmoothing: Double = -1,
+      termSmoothing: Double = -1,
       vocabSize: Int = 10000,
       stopwordFile: String = "") extends AbstractParams[Params]
 
