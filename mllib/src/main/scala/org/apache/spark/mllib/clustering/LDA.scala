@@ -283,6 +283,7 @@ object LDA {
       vocabSize: Int,
       topicSmoothing: Double,
       termSmoothing: Double) {
+
     // TODO: Checkpoint periodically?
     def next(): LearningState = copy(graph = step(graph))
 
@@ -421,7 +422,6 @@ object LDA {
 
   /**
    * Compute bipartite term/doc graph.
-   * doc ids are shifted by vocabSize to maintain uniqueness
    */
   private def initialState(
       docs: RDD[Document],
@@ -429,6 +429,7 @@ object LDA {
       topicSmoothing: Double,
       termSmoothing: Double,
       randomSeed: Long): LearningState = {
+
     // For each document, create an edge (Document -> Term) for each unique term in the document.
     val edges: RDD[Edge[TokenCount]] = docs.flatMap { doc =>
       // Add edges for terms with non-zero counts.

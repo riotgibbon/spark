@@ -244,7 +244,7 @@ object LDATiming {
   }
 }
 
-private class Tokenizer(sc: SparkContext, stopwordFile: String) extends Serializable {
+class Tokenizer(sc: SparkContext, stopwordFile: String) extends Serializable {
 
   private val stopwords: Set[String] = if (stopwordFile.isEmpty) {
     Set.empty[String]
@@ -254,13 +254,18 @@ private class Tokenizer(sc: SparkContext, stopwordFile: String) extends Serializ
   }
 
   // Matches sequences of Unicode letters
-  private val allWordRegex = "^(\\p{L}*)$".r
+  //private val allWordRegex = "^(\\p{L}*)$".r
 
   // Ignore words shorter than this length.
   private val minWordLength = 3
 
   def getWords(text: String): IndexedSeq[String] = {
 
+    text.toLowerCase.split("\\s").filter { term =>
+      term.length >= minWordLength && !stopwords.contains(term)
+    }
+
+    /*
     val words = new ArrayBuffer[String]()
 
     // Use Java BreakIterator to tokenize text into words.
@@ -284,6 +289,7 @@ private class Tokenizer(sc: SparkContext, stopwordFile: String) extends Serializ
       end = wb.next()
     }
     words
+    */
   }
 
 }

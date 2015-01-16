@@ -17,10 +17,12 @@
 
 package org.apache.spark.mllib.clustering
 
-import breeze.linalg.{DenseMatrix => BDM, normalize}
+import java.util.Random
+
+import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV, normalize}
 
 import org.apache.spark.annotation.DeveloperApi
-import org.apache.spark.mllib.linalg.{Vectors, Vector, Matrices, Matrix}
+import org.apache.spark.mllib.linalg._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.util.BoundedPriorityQueue
 
@@ -106,6 +108,7 @@ abstract class LDAModel private[clustering] {
 
 }
 
+
 /**
  * :: DeveloperApi ::
  *
@@ -142,8 +145,8 @@ class LocalLDAModel private[clustering] (
     }
   }
 
-  // TODO
-  // override def logLikelihood(documents: RDD[Document]): Double = ???
+  // TODO: Use random seed!
+  // override def logLikelihood(documents: RDD[Document]): Double
 
   // TODO:
   // override def topicDistributions(documents: RDD[Document]): RDD[(Long, Vector)] = ???
