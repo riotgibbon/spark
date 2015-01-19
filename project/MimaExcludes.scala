@@ -128,6 +128,11 @@ object MimaExcludes {
             // SPARK-5315 Spark Streaming Java API returns Scala DStream
             ProblemFilters.exclude[MissingMethodProblem](
               "org.apache.spark.streaming.api.java.JavaDStreamLike.reduceByWindow")
+          ) ++ Seq(
+            // SPARK-4789 Standardize ML Prediction APIs
+            ProblemFilters.exclude[MissingTypesProblem]("org.apache.spark.mllib.linalg.VectorUDT"),
+            ProblemFilters.exclude[IncompatibleResultTypeProblem]("org.apache.spark.mllib.linalg.VectorUDT.serialize"),
+            ProblemFilters.exclude[IncompatibleResultTypeProblem]("org.apache.spark.mllib.linalg.VectorUDT.sqlType")
           )
 
         case v if v.startsWith("1.2") =>
