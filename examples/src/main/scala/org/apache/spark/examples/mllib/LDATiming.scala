@@ -294,8 +294,8 @@ class Tokenizer(sc: SparkContext, stopwordFile: String) extends Serializable {
 
   def getWords(text: String): IndexedSeq[String] = {
 
-    text.toLowerCase.split("\\s").filter { term =>
-      term.length >= minWordLength && !stopwords.contains(term)
+    text.split("\\s").filter(_.length >= minWordLength).map(_.toLowerCase).filter { term =>
+      !stopwords.contains(term)
     }
 
     /*
