@@ -18,6 +18,7 @@
 package org.apache.spark.examples.mllib
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
 
 import java.text.BreakIterator
 
@@ -30,7 +31,7 @@ import org.apache.spark.mllib.clustering.LDA
 import org.apache.spark.mllib.clustering.LDA.Document
 import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.rdd.RDD
-
+import org.apache.spark.util.collection.OpenHashSet
 
 /**
  * An app for timing Latent Dirichlet Allocation (LDA).
@@ -214,12 +215,44 @@ object LDATiming {
       .reduceByKey(_ + _)
 
     // Choose vocabulary: Map[word -> id]
-    val vocab: Map[String, Int] = wordCounts
-      .sortBy(_._2, ascending = false)
-      .take(vocabSize)
-      .map(_._1)
-      .zipWithIndex
-      .toMap
+    val vocab: Map[String, Int] = if (vocabSize == -1) {
+      val allWords = wordCounts.aggregate(new OpenHashSet[String])({ case (wordSet, (word, _)) =>
+        wordSet.add(word)
+        wordSet
+      }, { case (a, b) =>
+        b.iterator.foreach(w => a.add(w))
+        a
+      })
+      allWords
+        .iterator
+        .zipWithIndex
+        .toMap
+    } else {
+      val allWords = wordCounts.aggregate(new mutable.HashMap[String, Long])({ case (d, (w, _)) =>
+        d(w) = d.getOrElse(w, 0L) + 1
+        d
+      }, { case (a, b) =>
+        b.iterator.foreach { case (w: String, cnt: Long) =>
+          a(w) = a.getOrElse(w, 0L) + cnt
+        }
+        a
+      })
+      allWords
+        .toSeq
+        .sortBy(-_._2)
+        .take(vocabSize)
+        .map(_._1)
+        .zipWithIndex
+        .toMap
+      /*
+      wordCounts
+        .sortBy(_._2, ascending = false)
+        .take(vocabSize)
+        .map(_._1)
+        .zipWithIndex
+        .toMap
+        */
+    }
 
     val documents = tokenized.map { case (id, tokens) =>
       // Filter tokens by vocabulary, and create word count vector representation of document.
