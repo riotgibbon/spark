@@ -209,16 +209,19 @@ object LDATiming {
       id -> tokenizer.getWords(text)
     }
 
+    /*
     // Counts words: RDD[(word, wordCount)]
     val wordCounts: RDD[(String, Int)] = tokenized
       .flatMap { case (_, tokens) => tokens.map(_ -> 1) }
       .reduceByKey(_ + _)
+    */
 
     // Choose vocabulary: Map[word -> id]
     val vocab: Map[String, Int] = if (vocabSize == -1) {
-      val allWords = wordCounts.aggregate(new OpenHashSet[String])({ case (wordSet, (word, _)) =>
-        wordSet.add(word)
-        wordSet
+      val allWords = tokenized.aggregate(new OpenHashSet[String])({
+        case (wordSet, (docId, words)) =>
+          words.foreach(word => wordSet.add(word))
+          wordSet
       }, { case (a, b) =>
         b.iterator.foreach(w => a.add(w))
         a
@@ -228,9 +231,10 @@ object LDATiming {
         .zipWithIndex
         .toMap
     } else {
-      val allWords = wordCounts.aggregate(new mutable.HashMap[String, Long])({ case (d, (w, _)) =>
-        d(w) = d.getOrElse(w, 0L) + 1
-        d
+      val allWords = tokenized.aggregate(new mutable.HashMap[String, Long])({
+        case (wc, (docId, words)) =>
+          words.foreach(word => wc(word) = wc.getOrElse(word, 0L) + 1)
+          wc
       }, { case (a, b) =>
         b.iterator.foreach { case (w: String, cnt: Long) =>
           a(w) = a.getOrElse(w, 0L) + cnt
@@ -287,18 +291,12 @@ class Tokenizer(sc: SparkContext, stopwordFile: String) extends Serializable {
   }
 
   // Matches sequences of Unicode letters
-  //private val allWordRegex = "^(\\p{L}*)$".r
+  private val allWordRegex = "^(\\p{L}*)$".r
 
   // Ignore words shorter than this length.
   private val minWordLength = 3
 
   def getWords(text: String): IndexedSeq[String] = {
-
-    text.split("\\s").filter(_.length >= minWordLength).map(_.toLowerCase).filter { term =>
-      !stopwords.contains(term)
-    }
-
-    /*
     val words = new ArrayBuffer[String]()
 
     // Use Java BreakIterator to tokenize text into words.
@@ -322,7 +320,6 @@ class Tokenizer(sc: SparkContext, stopwordFile: String) extends Serializable {
       end = wb.next()
     }
     words
-    */
   }
 
 }
