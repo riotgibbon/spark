@@ -18,6 +18,7 @@
 package org.apache.spark.examples.mllib
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
 
 import java.text.BreakIterator
 
@@ -30,6 +31,7 @@ import org.apache.spark.mllib.clustering.LDA
 import org.apache.spark.mllib.clustering.LDA.Document
 import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.rdd.RDD
+import org.apache.spark.util.collection.OpenHashSet
 
 
 /**
@@ -208,18 +210,54 @@ object LDATiming {
       id -> tokenizer.getWords(text)
     }
 
+    /*
     // Counts words: RDD[(word, wordCount)]
     val wordCounts: RDD[(String, Int)] = tokenized
       .flatMap { case (_, tokens) => tokens.map(_ -> 1) }
       .reduceByKey(_ + _)
+    */
 
     // Choose vocabulary: Map[word -> id]
-    val vocab: Map[String, Int] = wordCounts
-      .sortBy(_._2, ascending = false)
-      .take(vocabSize)
-      .map(_._1)
-      .zipWithIndex
-      .toMap
+    val vocab: Map[String, Int] = if (vocabSize == -1) {
+      val allWords = tokenized.aggregate(new OpenHashSet[String])({
+        case (wordSet, (docId, words)) =>
+          words.foreach(word => wordSet.add(word))
+          wordSet
+      }, { case (a, b) =>
+        b.iterator.foreach(w => a.add(w))
+        a
+      })
+      allWords
+        .iterator
+        .zipWithIndex
+        .toMap
+    } else {
+      val allWords = tokenized.aggregate(new mutable.HashMap[String, Long])({
+        case (wc, (docId, words)) =>
+          words.foreach(word => wc(word) = wc.getOrElse(word, 0L) + 1)
+          wc
+      }, { case (a, b) =>
+        b.iterator.foreach { case (w: String, cnt: Long) =>
+          a(w) = a.getOrElse(w, 0L) + cnt
+        }
+        a
+      })
+      allWords
+        .toSeq
+        .sortBy(-_._2)
+        .take(vocabSize)
+        .map(_._1)
+        .zipWithIndex
+        .toMap
+      /*
+      wordCounts
+        .sortBy(_._2, ascending = false)
+        .take(vocabSize)
+        .map(_._1)
+        .zipWithIndex
+        .toMap
+        */
+    }
 
     val documents = tokenized.map { case (id, tokens) =>
       // Filter tokens by vocabulary, and create word count vector representation of document.
@@ -254,18 +292,12 @@ class Tokenizer(sc: SparkContext, stopwordFile: String) extends Serializable {
   }
 
   // Matches sequences of Unicode letters
-  //private val allWordRegex = "^(\\p{L}*)$".r
+  private val allWordRegex = "^(\\p{L}*)$".r
 
   // Ignore words shorter than this length.
   private val minWordLength = 3
 
   def getWords(text: String): IndexedSeq[String] = {
-
-    text.toLowerCase.split("\\s").filter { term =>
-      term.length >= minWordLength && !stopwords.contains(term)
-    }
-
-    /*
     val words = new ArrayBuffer[String]()
 
     // Use Java BreakIterator to tokenize text into words.
@@ -289,7 +321,6 @@ class Tokenizer(sc: SparkContext, stopwordFile: String) extends Serializable {
       end = wb.next()
     }
     words
-    */
   }
 
 }
