@@ -329,9 +329,10 @@ object LDA {
         graph.outerJoinVertices(docTopicDistributions) { (vid, oldDist, newDist) => newDist.get }
       previousGraph match {
         case Some(prevG) =>
-          prevG.unpersist(blocking = false)
+          prevG.unpersistVertices(blocking = false)
         case None =>
       }
+      newGraph
     }
 
     /**
