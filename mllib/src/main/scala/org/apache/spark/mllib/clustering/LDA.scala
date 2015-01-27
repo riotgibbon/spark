@@ -293,6 +293,7 @@ object LDA {
       val W = vocabSize
       val alpha = topicSmoothing
 
+      graph.cache()
       val N_k = globalTopicTotals
       val sendMsg: EdgeContext[TopicCounts, TokenCount, (Boolean, TopicCounts)] => Unit =
         (edgeContext) => {
@@ -324,7 +325,13 @@ object LDA {
         graph.aggregateMessages[(Boolean, TopicCounts)](sendMsg, mergeMsg)
           .mapValues(_._2)
       // Update the vertex descriptors with the new counts.
-      graph.outerJoinVertices(docTopicDistributions) { (vid, oldDist, newDist) => newDist.get }
+      val newGraph =
+        graph.outerJoinVertices(docTopicDistributions) { (vid, oldDist, newDist) => newDist.get }
+      previousGraph match {
+        case Some(prevG) =>
+          prevG.unpersist(blocking = false)
+        case None =>
+      }
     }
 
     /**
@@ -334,15 +341,7 @@ object LDA {
      */
     lazy val globalTopicTotals: TopicCounts = {
       val numTopics = k
-      graph.cache()
-      val totals =
-        graph.vertices.filter(isTermVertex).values.fold(BDV.zeros[Double](numTopics))(_ += _)
-      previousGraph match {
-        case Some(prevG) =>
-          prevG.unpersist(blocking = false)
-        case None =>
-      }
-      totals
+      graph.vertices.filter(isTermVertex).values.fold(BDV.zeros[Double](numTopics))(_ += _)
     }
 
     /**
