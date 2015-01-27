@@ -325,7 +325,7 @@ object LDA {
           .mapValues(_._2)
       // Update the vertex descriptors with the new counts.
       val newGraph =
-        GraphImpl(docTopicDistributions, graph.edges)
+        GraphImpl.fromExistingRDDs(docTopicDistributions, graph.edges)
         // graph.outerJoinVertices(docTopicDistributions) { (vid, oldDist, newDist) => newDist.get }
       previousGraph match {
         case Some(prevG) =>
