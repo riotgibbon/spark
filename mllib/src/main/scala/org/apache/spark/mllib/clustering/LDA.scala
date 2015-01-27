@@ -24,6 +24,7 @@ import breeze.linalg.{DenseVector => BDV, sum => brzSum, normalize, axpy => brzA
 import org.apache.spark.Logging
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.graphx._
+import org.apache.spark.graphx.impl.GraphImpl
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.util.Utils
@@ -286,9 +287,7 @@ object LDA {
       previousGraph: Option[Graph[TopicCounts, TokenCount]]) {
 
     // TODO: Checkpoint periodically?
-    def next(): LearningState = copy(graph = step(graph), previousGraph = Some(graph))
-
-    private def step(graph: Graph[TopicCounts, TokenCount]): Graph[TopicCounts, TokenCount] = {
+    def next(): LearningState = {
       val eta = termSmoothing
       val W = vocabSize
       val alpha = topicSmoothing
@@ -326,13 +325,14 @@ object LDA {
           .mapValues(_._2)
       // Update the vertex descriptors with the new counts.
       val newGraph =
-        graph.outerJoinVertices(docTopicDistributions) { (vid, oldDist, newDist) => newDist.get }
+        GraphImpl(docTopicDistributions, graph.edges)
+        // graph.outerJoinVertices(docTopicDistributions) { (vid, oldDist, newDist) => newDist.get }
       previousGraph match {
         case Some(prevG) =>
-          prevG.unpersistVertices(blocking = false)
+          prevG.unpersist(blocking = false)
         case None =>
       }
-      newGraph
+      copy(graph = newGraph, previousGraph = Some(graph))
     }
 
     /**
