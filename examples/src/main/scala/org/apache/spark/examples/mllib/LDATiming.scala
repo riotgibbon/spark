@@ -168,7 +168,7 @@ object LDATiming {
           println()
 
           // Print the topics, showing the top-weighted terms for each topic.
-          val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = 10)
+          val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = 200)
           val topics = topicIndices.map { case (terms, termWeights) =>
             terms.zip(termWeights).map { case (term, weight) => (vocabArray(term.toInt), weight) }
           }
