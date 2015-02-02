@@ -229,6 +229,8 @@ class LDA private (
       state.next()
       val elapsedSeconds = (System.nanoTime() - start) / 1e9
       iterationTimes(iter) = elapsedSeconds
+      val tmpModel = new DistributedLDAModel(state, iterationTimes)
+      println(s"Iteration $iter:\ttime=$elapsedSeconds\tlogLike=${tmpModel.logLikelihood}\tlogPrior=${tmpModel.logPrior}")
       iter += 1
     }
     state.graphCheckpointer.deleteAllCheckpoints()
